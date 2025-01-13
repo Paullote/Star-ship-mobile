@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>star ship</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        canvas {
+            border: 2px solid white;
+            display: none; /* Inicialmente escondido */
+        }
+
+        .menu {
+            color: white;
+            font-size: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .play-btn {
+            background-color: white;
+            color: black;
+            font-size: 30px;
+            padding: 15px 30px;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .play-btn:hover {
+            background-color: #ddd;
+        }
+
+        .vitoria {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu" class="menu">
+        <div>STAR Ship</div>
+        <button class="play-btn" onclick="iniciarJogo()">Play</button>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    <div id="vitoria" class="vitoria" style="display: none;">end :)</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const menu = document.getElementById("menu");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const naveWidth = 50, naveHeight = 50;
+        const inimigoWidth = 50, inimigoHeight = 50;
+        const disparoWidth = 5, disparoHeight = 10;
+        let naveX = canvas.width - naveWidth - 10, naveY = canvas.height / 2 - naveHeight / 2;
+        let disparos = [];
+        let inimigos = [];
+        let loopDirection = 1;
+        let disparando = false;
+        let inimigosDestruidos = 0;
+        let intervaloDisparo = 500;
+        let ultimoDisparo = Date.now();
+        let jogoAtivo = false; // Inicia o jogo como falso
+
+        function criarInimigos() {
+            inimigos = [];
+            for (let i = 0; i < 19; i++) {
+                inimigos.push({
+                    x: i * (canvas.width / 20),
+                    y: 50,
+                    width: inimigoWidth,
+                    height: inimigoHeight,
+                    ativo: true
+                });
+            }
+        }
+
+        function desenharNave() {
+            ctx.fillStyle = "white";
+            ctx.fillRect(naveX, naveY, naveWidth, naveHeight);
+        }
+
+        function desenharDisparos() {
+            ctx.fillStyle = "white";
+            disparos.forEach(disparo => {
+                ctx.fillRect(disparo.x, disparo.y, disparoWidth, disparoHeight);
+            });
+        }
+
+        function desenharInimigos() {
+            ctx.fillStyle = "white";
+            inimigos.forEach(inimigo => {
+                if (inimigo.ativo) {
+                    ctx.fillRect(inimigo.x, inimigo.y, inimigoWidth, inimigoHeight);
+                }
+            });
+        }
+
+        function verificarColisoes() {
+            disparos.forEach((disparo, index) => {
+                inimigos.forEach(inimigo => {
+                    if (inimigo.ativo &&
+                        disparo.x < inimigo.x + inimigoWidth &&
+                        disparo.x + disparoWidth > inimigo.x &&
+                        disparo.y < inimigo.y + inimigoHeight &&
+                        disparo.y + disparoHeight > inimigo.y) {
+                        inimigo.ativo = false;
+                        disparos.splice(index, 1);
+                        inimigosDestruidos++;
+
+                        if (inimigosDestruidos === inimigos.length) {
+                            setTimeout(() => {
+                                mostrarTelaVitoria();
+                            }, 200);
+                        }
+                    }
+                });
+            });
+        }
+
+        function moverNave() {
+            if (loopDirection === 1 && naveX > 10) {
+                naveX -= 5;
+            } else if (loopDirection === -1 && naveX < canvas.width - naveWidth - 10) {
+                naveX += 5;
+            }
+
+            if (naveX <= 10 || naveX >= canvas.width - naveWidth - 10) {
+                loopDirection *= -1;
+            }
+        }
+
+        function moverDisparos() {
+            disparos.forEach(disparo => {
+                disparo.y -= 10;
+            });
+            disparos = disparos.filter(disparo => disparo.y > 0);
+        }
+
+        function mostrarTelaVitoria() {
+            document.getElementById("vitoria").style.display = "block";
+        }
+
+        function reiniciarJogo() {
+            inimigosDestruidos = 0;
+            disparos = [];
+            criarInimigos();
+            naveX = canvas.width - naveWidth - 10;
+            naveY = canvas.height / 2 - naveHeight / 2;
+            loopDirection = 1;
+            jogoAtivo = true;
+            document.getElementById("vitoria").style.display = "none";
+        }
+
+        function disparar() {
+            if (Date.now() - ultimoDisparo >= intervaloDisparo) {
+                disparos.push({ x: naveX + naveWidth / 2 - disparoWidth / 2, y: naveY });
+                ultimoDisparo = Date.now();
+            }
+        }
+
+        function controleTeclado(e) {
+            if (e.code === "Space" && jogoAtivo) {
+                disparar();
+            } else if (e.code === "Space" && !jogoAtivo) {
+                reiniciarJogo();
+            }
+        }
+
+        function atualizar() {
+            if (!jogoAtivo) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            moverNave();
+            moverDisparos();
+            verificarColisoes();
+
+            desenharNave();
+            desenharDisparos();
+            desenharInimigos();
+        }
+
+        function loop() {
+            atualizar();
+            requestAnimationFrame(loop);
+        }
+
+        // Evento de clique para disparar no celular
+        canvas.addEventListener("click", function() {
+            if (jogoAtivo) {
+                disparar();
+            } else {
+                reiniciarJogo();
+            }
+        });
+
+        function iniciarJogo() {
+            menu.style.display = "none";  // Esconde o menu
+            canvas.style.display = "block";  // Exibe o canvas
+            jogoAtivo = true;  // Ativa o jogo
+            criarInimigos();  // Cria os inimigos
+            loop();  // Inicia o loop do jogo
+        }
+
+        // Inicialização do jogo
+        criarInimigos();
+        loop();
+
+        // Evento de teclado
+        document.addEventListener("keydown", controleTeclado);
+    </script>
+</body>
+</html>
